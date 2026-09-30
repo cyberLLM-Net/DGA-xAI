@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dga-features-extractor"
+version = "1.0.0"
+description = "Reproducible DGA dataset construction and feature extraction pipeline with Parquet export and metadata generation."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "Apache License 2.0" }
+authors = [{ name = "Victor Carneiro", email = "victor.carneiro@udc.es" }]
+classifiers = [
+  "License :: OSI Approved :: Apache Software License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+]
+dependencies = [
+  "pyarrow>=16.0.0"
+]
+
+[project.scripts]
+dga-arff = "dga_features_extractor.cli:main"
+dga-dataset = "dga_features_extractor.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]

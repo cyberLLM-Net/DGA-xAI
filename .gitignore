@@ -1,0 +1,36 @@
+# Operating-system and editor artifacts
+.DS_Store
+__MACOSX/
+.vscode/
+
+# Python build and test artifacts
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.venv/
+dist/
+build/
+*.log
+
+# Benign-domain aggregation inputs and outputs
+/dga_benigns_generator/benigns_domains/
+/dga_benigns_generator/logs/
+/dga_benigns_generator/results/
+/dga_benigns_generator/results_initial/
+
+# DGA generation implementations and outputs
+/dga_fraudulents_generator/dga_algorithms/
+/dga_fraudulents_generator/results/
+/dga_fraudulents_generator/results_initial/
+
+# Feature-construction inputs and outputs
+/dga_features_extractor/raw_data/
+/dga_features_extractor/processed_data/
+/dga_features_extractor/processed_data_initial/
+
+# Optional downstream evaluation outputs
+/dga_classification_pipeline/results_slurm/
+/dga_classification_pipeline/results_latex/
+/dga_classification_pipeline/results_transformers/
+/dga_classification_pipeline/dataset_analysis/
