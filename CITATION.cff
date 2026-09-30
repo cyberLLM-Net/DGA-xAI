@@ -1,0 +1,45 @@
+cff-version: 1.2.0
+message: "If you use UDCDGA_Generator in your research, please cite this software."
+
+title: "UDCDGA_Generator: A reproducible and extensible framework for constructing DGA datasets"
+
+type: software
+version: "1.0.0"
+date-released: "2026-09-30"
+
+authors:
+  - family-names: "Carneiro"
+    given-names: "Victor"
+    email: "victor.carneiro@udc.es"
+    affiliation: "Universidade da Coruña"
+    orcid: "https://orcid.org/0000-0002-7536-9422"
+
+repository-code: "https://github.com/cyberLLM-Net/DGA-xAI"
+url: "https://github.com/cyberLLM-Net/DGA-xAI"
+
+doi: "10.5281/zenodo.23058255"
+
+license: "Apache-2.0"
+
+keywords:
+  - "Domain Generation Algorithm"
+  - "DGA"
+  - "DNS"
+  - "cybersecurity"
+  - "malicious domain detection"
+  - "dataset generation"
+  - "machine learning"
+  - "reproducibility"
+
+abstract: >-
+  UDCDGA_Generator is an open-source Python framework for the reproducible
+  construction of datasets for Domain Generation Algorithm (DGA) research.
+  The software implements a modular three-stage workflow comprising
+  benign-domain aggregation, DGA-generated domain generation, and balanced
+  dataset construction with feature extraction. The framework supports
+  configurable and deterministic dataset generation, domain normalization
+  and validation, duplicate and cross-class overlap removal, persistent
+  deduplication, execution statistics, integrity validation, and
+  reproducibility metadata. The final dataset construction stage computes
+  a predefined set of 54 lexical, structural, statistical, and n-gram-based
+  features and exports the resulting data primarily in Apache Parquet format.
