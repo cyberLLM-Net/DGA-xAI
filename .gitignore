@@ -15,22 +15,40 @@ build/
 
 # Benign-domain aggregation inputs and outputs
 /dga_benigns_generator/benigns_domains/
+/dga_benigns_generator/benigns_domains.zip
 /dga_benigns_generator/logs/
 /dga_benigns_generator/results/
 /dga_benigns_generator/results_initial/
+/dga_benigns_generator/logs/ 
 
 # DGA generation implementations and outputs
 /dga_fraudulents_generator/dga_algorithms/
 /dga_fraudulents_generator/results/
 /dga_fraudulents_generator/results_initial/
+/dga_fraudulents_generator/logs/
 
 # Feature-construction inputs and outputs
 /dga_features_extractor/raw_data/
 /dga_features_extractor/processed_data/
 /dga_features_extractor/processed_data_initial/
 
-# Optional downstream evaluation outputs
-/dga_classification_pipeline/results_slurm/
-/dga_classification_pipeline/results_latex/
-/dga_classification_pipeline/results_transformers/
-/dga_classification_pipeline/dataset_analysis/
+# Optional experimental   
+/reproducibility_experiment/
+/docs/
+/logs/
+/reports/
+/validation/
+/THIRD_PARTY*
+
+# Keep the independently established Ramnit/Tinba regression vectors available
+# to the permanent production-path tests; all other validation material remains local.
+!/validation/
+/validation/*
+!/validation/dga_reference_validation/
+/validation/dga_reference_validation/*
+!/validation/dga_reference_validation/vectors/
+/validation/dga_reference_validation/vectors/*
+!/validation/dga_reference_validation/vectors/ramnit_reference_raw.json
+!/validation/dga_reference_validation/vectors/tinba_reference_raw.json
+validation/dga_reference_validation/vectors/tinba_reference_raw.json
+validation/dga_reference_validation/vectors/ramnit_reference_raw.json

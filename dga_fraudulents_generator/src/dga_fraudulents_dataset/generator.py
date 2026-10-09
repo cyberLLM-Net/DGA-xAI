@@ -1106,6 +1106,17 @@ def run_pipeline(cfg: AppConfig) -> dict:
                 if ins.algorithm_code.lower() == "qsnatch":
                     resume_idx = int((plan.last_effective_params or {}).get("next_global_index", 0) or 0)
                     ins.parameter_strategy["resume_next_global_index"] = resume_idx
+                if plan.strategy == "cli_subprocess" or ins.adapter_type in {"cli", "cli_subprocess"}:
+                    cli_params = plan.last_effective_params or {}
+                    ins.parameter_strategy["resume_cli_invocation_count"] = int(
+                        cli_params.get("cli_invocation_count", 0) or 0
+                    )
+                    ins.parameter_strategy["resume_cli_sequence_key"] = cli_params.get(
+                        "cli_sequence_key"
+                    )
+                    ins.parameter_strategy["resume_cli_sequence_offset"] = int(
+                        cli_params.get("cli_sequence_offset", 0) or 0
+                    )
                 dstart, dend, dpolicy = _date_bounds_for_inspection(cfg, ins)
                 adapters[ins.algorithm_code] = get_adapter(
                     ins,

@@ -119,6 +119,50 @@ that cannot be converted to a finite float are also replaced by `0.0`.
 feature extractor increments `feature_computation_errors` and skips that row;
 the final balance check prevents silently publishing an unbalanced result.
 
+### Feature-extension API
+
+The extractor provides a lightweight ordered registry rather than a dynamic
+plugin ecosystem. `FeatureDefinition` is an immutable record containing a
+unique `name`, callable `extractor`, supported `dtype`, scientific
+`description`, and `definition_version`. The only currently supported custom
+dtype is `float64`. Registration order is output-column order; duplicate names,
+invalid names, and the reserved names `DOMAIN`, `CLASS`, and `LABEL` are
+rejected.
+
+Create an experiment-local registry with `with_feature`. The immutable default
+registry is not modified:
+
+```python
+from dga_features_extractor import FeatureDefinition, default_feature_registry
+
+domain_length_squared = FeatureDefinition(
+    name="domain_length_squared",
+    extractor=lambda context: float(len(context.normalized_domain) ** 2),
+    dtype="float64",
+    description="Square of the normalized domain string length, including internal dots.",
+    definition_version="1",
+)
+
+registry = default_feature_registry().with_feature(domain_length_squared)
+# Pass registry as BuildConfig(feature_registry=registry, ...).
+```
+
+The default registry remains the historical 54-feature schema. The active
+registry drives computation, Parquet and ARFF ordering, schema-description
+metadata, manifest and integrity metadata, and validation.
+
+`feature_schema_version` is a human-managed identifier for the feature-schema
+contract. `feature_schema_checksum` retains the historical SHA-256 over ordered
+newline-separated names; the same value is also reported explicitly as
+`feature_name_order_checksum`. `feature_definition_checksum` hashes a canonical
+ordered serialization of each feature's name, dtype, and definition version.
+It deliberately does not hash callable source code. Package version and source
+revision must therefore be retained for implementation-level traceability.
+
+The integrity file records feature identity, but its existing per-row hashes
+cover domain, label, and split—not computed feature values. Output-file hashes
+bind the serialized Parquet, ARFF, and schema-description artifacts.
+
 ## Balancing and deduplication
 
 Selection is performed in this order:

@@ -28,6 +28,8 @@ EXTERNAL_ADAPTER_MODULES = {
     "test_ngioweb_adapter": "ngioweb",
     "test_nymaim_adapter": "nymaim",
     "test_qsnatch_adapter": "qsnatch",
+    "test_ramnit_adapter": "ramnit",
+    "test_tinba_adapter": "tinba",
     "test_zloader_adapter": "zloader",
 }
 

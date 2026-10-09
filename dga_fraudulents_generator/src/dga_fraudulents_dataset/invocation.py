@@ -4,6 +4,7 @@ import hashlib
 import importlib.util
 import inspect
 import io
+import json
 import logging
 import math
 import re
@@ -522,7 +523,16 @@ class CliSubprocessAdapter(AlgorithmAdapter):
         self.max_cli_invocations_per_batch = (
             inspection.max_cli_invocations_per_batch or max_cli_invocations_per_batch
         )
-        self.round_id = 0
+        self.round_id = max(
+            0,
+            int(inspection.parameter_strategy.get("resume_cli_invocation_count", 0) or 0),
+        )
+        resume_key = inspection.parameter_strategy.get("resume_cli_sequence_key")
+        self.sequence_key = str(resume_key) if isinstance(resume_key, str) else None
+        self.sequence_offset = max(
+            0,
+            int(inspection.parameter_strategy.get("resume_cli_sequence_offset", 0) or 0),
+        )
         self.explorer = ParameterExplorer(
             inspection,
             seed_strategy,
@@ -538,10 +548,36 @@ class CliSubprocessAdapter(AlgorithmAdapter):
         self.cli_mode = "scalar" if self.force_scalar else ("batch" if self.force_batch else "unknown")
         self._profile_cache: dict[str, Any] | None = None
 
-    def _build_cmd(self, rid: int) -> tuple[list[str], dict[str, Any], list[str]]:
+    @staticmethod
+    def _sequence_key(cmd: list[str]) -> str:
+        # The adapter has one entrypoint. Only arguments that select a logical
+        # sequence belong in the key; absolute interpreter/script paths do not.
+        return json.dumps(cmd[2:], ensure_ascii=True, separators=(",", ":"))
+
+    def _resolve_entrypoint(self) -> tuple[Path | None, str | None]:
+        """Resolve a CLI script independently of the child working directory."""
         if not self.inspection.entrypoint:
-            return [], {}, []
-        entry = Path(self.inspection.entrypoint)
+            return None, "missing_entrypoint: no CLI entrypoint configured"
+
+        entry = Path(self.inspection.entrypoint).expanduser()
+        algorithm_dir = Path(self.inspection.path).expanduser().resolve()
+        candidates = (
+            [entry]
+            if entry.is_absolute()
+            else [entry.resolve(), algorithm_dir / entry, algorithm_dir / entry.name]
+        )
+        for candidate in candidates:
+            if candidate.is_file():
+                return candidate.resolve(), None
+
+        return None, f"missing_entrypoint: {entry}"
+
+    def _build_cmd(self, rid: int) -> tuple[list[str], dict[str, Any], list[str], str | None]:
+        if not self.inspection.entrypoint:
+            return [], {}, [], "missing_entrypoint: no CLI entrypoint configured"
+        entry, entry_error = self._resolve_entrypoint()
+        if entry is None:
+            return [], {}, [], entry_error
         cmd = [sys.executable, str(entry)]
         values, axes = self.explorer.build_values(["seed", "date", "n"], rid)
         if (
@@ -564,14 +600,16 @@ class CliSubprocessAdapter(AlgorithmAdapter):
         if self.inspection.requires_seed:
             cmd.extend(["--seed", str(values.get("seed", 1))])
 
-        return cmd, values, axes
+        return cmd, values, axes, None
 
     def _run_once(
         self, rid: int
     ) -> tuple[list[str], bool, str, str, int, float, dict[str, Any], list[str], list[str]]:
-        cmd, params, axes = self._build_cmd(rid)
+        cmd, params, axes, build_error = self._build_cmd(rid)
         if not cmd:
-            return [], False, "", "", -1, 0.0, params, axes, []
+            error = build_error or "missing_entrypoint"
+            logger.warning("CLI invocation rejected algorithm=%s error=%s", self.inspection.algorithm_code, error)
+            return [], False, "", "", -1, 0.0, params, axes, [error]
 
         call_errors: list[str] = []
         start = time.monotonic()
@@ -585,7 +623,7 @@ class CliSubprocessAdapter(AlgorithmAdapter):
         try:
             proc = subprocess.Popen(
                 cmd,
-                cwd=Path(self.inspection.path),
+                cwd=Path(self.inspection.path).expanduser().resolve(),
                 text=True,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
@@ -617,7 +655,30 @@ class CliSubprocessAdapter(AlgorithmAdapter):
                 )
 
             elapsed = time.monotonic() - start
-            lines = (stdout or "").splitlines() + (stderr or "").splitlines()
+            returncode = proc.returncode if proc.returncode is not None else -1
+            if returncode != 0:
+                error = f"subprocess_exit:{returncode}"
+                call_errors.append(error)
+                logger.warning(
+                    "CLI invocation failed algorithm=%s returncode=%s elapsed=%.3fs stderr=%s",
+                    self.inspection.algorithm_code,
+                    returncode,
+                    elapsed,
+                    (stderr or "")[:400],
+                )
+                return (
+                    [],
+                    False,
+                    (stdout or "")[:400],
+                    (stderr or "")[:400],
+                    returncode,
+                    elapsed,
+                    params,
+                    axes,
+                    call_errors,
+                )
+
+            lines = (stdout or "").splitlines()
             domains: list[str] = []
             for line in lines:
                 domains.extend(DOMAIN_PRINT_RE.findall(line))
@@ -630,7 +691,7 @@ class CliSubprocessAdapter(AlgorithmAdapter):
                 len(stdout or ""),
                 len(stderr or ""),
             )
-            return domains, False, (stdout or "")[:400], (stderr or "")[:400], proc.returncode or 0, elapsed, params, axes, call_errors
+            return domains, False, (stdout or "")[:400], (stderr or "")[:400], returncode, elapsed, params, axes, call_errors
         except Exception as exc:
             elapsed = time.monotonic() - start
             call_errors.append(str(exc))
@@ -697,11 +758,39 @@ class CliSubprocessAdapter(AlgorithmAdapter):
 
             if self.force_scalar:
                 out.extend(domains[:1])
+            elif self.cli_mode == "batch":
+                cmd, _, _, _ = self._build_cmd(rid)
+                sequence_key = self._sequence_key(cmd)
+                if sequence_key != self.sequence_key:
+                    self.sequence_key = sequence_key
+                    self.sequence_offset = 0
+                consumed = self.sequence_offset
+                remaining = batch_size - len(out)
+                fresh = domains[consumed : consumed + remaining]
+                out.extend(fresh)
+                self.sequence_offset = consumed + len(fresh)
+                last_params = {
+                    **last_params,
+                    "cli_invocation_count": self.round_id,
+                    "cli_sequence_key": sequence_key,
+                    "cli_sequence_offset": self.sequence_offset,
+                    "sequence_exhausted": consumed >= len(domains),
+                }
+                if consumed >= len(domains):
+                    break
             else:
                 out.extend(domains)
                 if self.cli_mode == "scalar":
                     # Scalar CLI: capped attempts per batch avoid runaway loops.
                     continue
+
+            if self.cli_mode == "scalar":
+                last_params = {
+                    **last_params,
+                    "cli_invocation_count": self.round_id,
+                    "cli_sequence_key": self.sequence_key,
+                    "cli_sequence_offset": self.sequence_offset,
+                }
 
         out = out[:batch_size]
         return BatchGenerationResult(

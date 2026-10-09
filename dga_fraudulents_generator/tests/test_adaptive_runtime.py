@@ -216,7 +216,8 @@ def test_cli_stdout_stderr_capture(tmp_path: Path):
         **DATE_ARGS,
     )
     result = adapter.generate(5)
-    assert "abc.com" in result.domains or "def.net" in result.domains
+    assert "abc.com" in result.domains
+    assert "def.net" not in result.domains
     assert result.stdout_summary is not None
     assert result.stderr_summary is not None
 

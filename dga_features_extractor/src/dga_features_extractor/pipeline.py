@@ -19,7 +19,8 @@ import pyarrow as pa
 
 from . import __version__
 from .arff import format_arff_row
-from .features import compute_domain_features_subset
+from .feature_registry import FeatureRegistry, default_feature_registry, registry_metadata
+from .features import compute_registered_features
 from .paths import DEFAULT_BENIGN_INPUT, DEFAULT_BENIGN_INPUT_ALT
 from .schema import (
     CLASS_COLUMN,
@@ -29,7 +30,6 @@ from .schema import (
     SAMPLE_FILE_NAME,
     feature_schema_checksum,
     full_dataset_columns,
-    selected_feature_names,
     write_field_descriptions,
 )
 from .validator import validate_outputs
@@ -84,6 +84,7 @@ class BuildConfig:
     write_schema_description: bool = True
     schema_description_name: str = FIELD_DESCRIPTION_FILE_NAME
     output_format: str = "parquet"
+    feature_registry: FeatureRegistry | None = None
 
 
 @dataclass
@@ -791,7 +792,9 @@ def build_manifest(
     schema_description_path: Path,
     started: float,
     finished: float,
+    registry: FeatureRegistry | None = None,
 ) -> Dict[str, object]:
+    registry = registry or default_feature_registry()
     path_anchor = config.output_dir.parent
     transformations = [
         "dga_first_selection",
@@ -827,8 +830,7 @@ def build_manifest(
         ],
         "transformations": transformations,
         "schema": {
-            "feature_count": len(feature_names),
-            "feature_names": feature_names,
+            **registry_metadata(registry),
             "columns": full_dataset_columns(feature_names),
             "feature_schema_checksum": feature_schema_checksum(feature_names),
             "reference_schema_path": "selected_feature_subset_default",
@@ -1035,7 +1037,8 @@ def build_arff_dataset(config: BuildConfig) -> Dict[str, object]:
 
     stats = BuildStats()
     started = time.time()
-    feature_names = selected_feature_names()
+    active_registry = config.feature_registry or default_feature_registry()
+    feature_names = list(active_registry.names)
     parquet_schema = _parquet_schema(feature_names)
 
     LOGGER.info("stage=args message=Execution arguments %s", json.dumps(config.execution_args, sort_keys=True))
@@ -1071,6 +1074,7 @@ def build_arff_dataset(config: BuildConfig) -> Dict[str, object]:
                     {"path": _portable_path(config.dga_input, config.output_dir.parent), "sha256": input_hashes["dga"]},
                 ],
                 "main_export_format": "parquet",
+                **registry_metadata(active_registry),
             },
         )
 
@@ -1126,8 +1130,6 @@ def build_arff_dataset(config: BuildConfig) -> Dict[str, object]:
             len(final_rows),
             len(feature_names),
         )
-        selected_feature_set = set(feature_names)
-
         benign_written_domains: set[str] = set()
         dga_written_domains: set[str] = set()
 
@@ -1138,7 +1140,7 @@ def build_arff_dataset(config: BuildConfig) -> Dict[str, object]:
                 split_name = "full"
 
             try:
-                features = compute_domain_features_subset(item.domain, selected_feature_names=selected_feature_set)
+                features = compute_registered_features(item.domain, active_registry)
                 feature_values = _coerce_feature_values(features, feature_names, stats)
             except Exception as exc:
                 stats.feature_errors += 1
@@ -1202,7 +1204,7 @@ def build_arff_dataset(config: BuildConfig) -> Dict[str, object]:
         sample_path, sample_rows_written = _write_final_sample_arff(config, feature_names, final_sample_sampler.samples)
 
         if config.write_schema_description:
-            write_field_descriptions(schema_description_path, feature_names)
+            write_field_descriptions(schema_description_path, feature_names, active_registry)
             LOGGER.info("stage=schema_description message=Wrote dataset field description json path=%s", schema_description_path)
 
         if config.validate_output:
@@ -1281,6 +1283,7 @@ def build_arff_dataset(config: BuildConfig) -> Dict[str, object]:
             schema_description_path=schema_description_path,
             started=started,
             finished=finished,
+            registry=active_registry,
         )
 
         stats_report = build_stats_report(

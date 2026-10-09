@@ -219,6 +219,18 @@ CLI subprocess execution does not use `shell=True`. It captures stdout and
 stderr, records return codes, applies invocation and batch timeouts, and kills
 the child process after an invocation timeout.
 
+### Security considerations
+
+DGA implementations are executed as trusted code. Python-based implementations
+may run within the main generator process, while CLI-based implementations run
+as ordinary subprocesses. UDCDGA_Generator does not provide sandboxing,
+privilege separation, filesystem or network isolation, syscall filtering, or
+operating-system resource limits.
+
+Users should inspect third-party DGA implementations before execution.
+Untrusted implementations should be evaluated within an appropriately
+isolated container or virtual machine.
+
 ## Testing
 
 The self-contained unit suite does not require the external algorithm

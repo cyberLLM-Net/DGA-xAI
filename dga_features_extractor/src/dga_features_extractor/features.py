@@ -2,7 +2,10 @@ from __future__ import annotations
 
 import math
 from collections import Counter
+from types import MappingProxyType
 from typing import Dict, Iterable, List, Set
+
+from .feature_registry import FeatureContext, FeatureRegistry, default_feature_registry
 
 VOWELS = set("aeiou")
 LETTERS = set("abcdefghijklmnopqrstuvwxyz")
@@ -655,6 +658,18 @@ def compute_domain_features_subset(
         feats.setdefault(feature_name, 0.0)
 
     return feats
+
+
+def compute_registered_features(domain: str, registry: FeatureRegistry) -> Dict[str, float]:
+    """Compute registered features while reusing the unchanged legacy formulas."""
+    default_names = set(default_feature_registry().names)
+    requested_defaults = [name for name in registry.names if name in default_names]
+    default_values = compute_domain_features_subset(domain, requested_defaults)
+    context = FeatureContext(
+        normalized_domain=domain,
+        default_feature_values=MappingProxyType(default_values),
+    )
+    return {definition.name: definition.extractor(context) for definition in registry.definitions}
 
 
 def compute_domain_features(domain: str, tgt_probs_by_n: Dict[int, Dict[str, float]] | None = None) -> Dict[str, float]:

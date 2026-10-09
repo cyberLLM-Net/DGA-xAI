@@ -21,6 +21,8 @@ from .ngioweb_adapter import NgiowebAdapter
 from .nymaim_adapter import NymaimAdapter
 from .orchard_adapter import OrchardAdapter
 from .qsnatch_adapter import QsnatchAdapter
+from .ramnit_adapter import RamnitAdapter
+from .tinba_adapter import TinbaAdapter
 from .zloader_adapter import ZloaderAdapter
 
 
@@ -75,6 +77,10 @@ def get_adapter(
         return OrchardAdapter(inspection, seed_strategy)
     if inspection.algorithm_code.lower() == "qsnatch":
         return QsnatchAdapter(inspection, seed_strategy, date_strategy)
+    if inspection.algorithm_code.lower() == "ramnit":
+        return RamnitAdapter(inspection, seed_strategy, date_strategy)
+    if inspection.algorithm_code.lower() == "tinba":
+        return TinbaAdapter(inspection, seed_strategy, date_strategy)
     if inspection.algorithm_code.lower() == "zloader":
         return ZloaderAdapter(inspection, seed_strategy, date_strategy)
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import csv
+import hashlib
 import json
 from dataclasses import dataclass
 from pathlib import Path
@@ -9,6 +10,51 @@ from typing import Dict, List, Optional
 import pyarrow.parquet as pq
 
 from .schema import CLASS_COLUMN, DOMAIN_COLUMN, LABEL_COLUMN
+
+
+def _manifest_schema(manifest_path: Path, errors: List[str]) -> List[str] | None:
+    if not manifest_path.exists():
+        return None
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except Exception as exc:
+        errors.append(f"Manifest is not valid JSON: {manifest_path} ({exc})")
+        return None
+    schema = manifest.get("schema")
+    if not isinstance(schema, dict):
+        errors.append(f"Manifest does not contain a valid schema object: {manifest_path}")
+        return None
+    names = schema.get("feature_names")
+    columns = schema.get("columns")
+    if not isinstance(names, list) or not all(isinstance(name, str) for name in names):
+        errors.append("Manifest schema feature_names is missing or invalid")
+        return None
+    derived_columns = [DOMAIN_COLUMN, *names, CLASS_COLUMN, LABEL_COLUMN]
+    if columns != derived_columns:
+        errors.append("Manifest schema columns do not match its ordered feature_names")
+    name_checksum = hashlib.sha256("\n".join(names).encode("utf-8")).hexdigest()
+    recorded_name_checksum = schema.get("feature_name_order_checksum", schema.get("feature_schema_checksum"))
+    if recorded_name_checksum != name_checksum:
+        errors.append("Manifest feature name/order checksum mismatch")
+    definitions = schema.get("feature_definitions")
+    if definitions is not None:
+        try:
+            canonical = [
+                {
+                    "definition_version": item["definition_version"],
+                    "dtype": item["dtype"],
+                    "name": item["name"],
+                }
+                for item in definitions
+            ]
+            digest = hashlib.sha256(
+                json.dumps(canonical, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode("utf-8")
+            ).hexdigest()
+            if schema.get("feature_definition_checksum") != digest:
+                errors.append("Manifest feature definition checksum mismatch")
+        except (KeyError, TypeError):
+            errors.append("Manifest feature_definitions is invalid")
+    return derived_columns
 
 
 @dataclass
@@ -190,6 +236,10 @@ def validate_outputs(
     del encoding
 
     errors: List[str] = []
+    manifest_path = metadata_dir / f"{base_name}_manifest.json"
+    recorded_columns = _manifest_schema(manifest_path, errors)
+    if recorded_columns is not None:
+        expected_columns = recorded_columns
     files = _find_parquet_files(output_dir, base_name)
     if expected_format != "parquet":
         errors.append(f"Unsupported validation format: {expected_format}")
@@ -208,13 +258,7 @@ def validate_outputs(
     if require_sample:
         sample_summary = _validate_sample_arff(output_dir / sample_file_name, expected_columns, errors)
 
-    manifest_path = metadata_dir / f"{base_name}_manifest.json"
     manifest_exists = manifest_path.exists()
-    if manifest_exists:
-        try:
-            json.loads(manifest_path.read_text(encoding="utf-8"))
-        except Exception as exc:
-            errors.append(f"Manifest is not valid JSON: {manifest_path} ({exc})")
 
     summary = {
         "format": expected_format,
