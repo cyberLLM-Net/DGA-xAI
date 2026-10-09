@@ -40,10 +40,5 @@
       "relation": "isSupplementTo",
       "resource_type": "software"
     }
-  ],
-  "grants": [
-    {
-      "id": "05r0vyz12::PID2023-150794OB-I00"
-    }
   ]
 }
