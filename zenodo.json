@@ -1,0 +1,49 @@
+{
+  "title": "UDCDGA_Generator: A reproducible and extensible framework for constructing DGA datasets",
+  "description": "<p><strong>UDCDGA_Generator</strong> is an open-source Python framework for the reproducible construction of datasets for Domain Generation Algorithm (DGA) research. The software implements a modular three-stage workflow comprising benign-source aggregation, DGA-generated domain generation, and balanced dataset construction with feature extraction.</p><p>The framework supports configurable and deterministic dataset generation, domain normalization and validation, duplicate and cross-class overlap removal, persistent deduplication, execution statistics, integrity validation, and reproducibility metadata. The default feature registry contains 54 lexical, structural, statistical, and n-gram-based numerical features, while experiment-specific feature configurations can be defined through an extensible feature registry. The resulting datasets are exported primarily in Apache Parquet format together with metadata and integrity artifacts.</p><p>UDCDGA_Generator is designed to facilitate the construction, extension, and regeneration of DGA datasets for cybersecurity research, including machine-learning-based DGA detection, feature analysis, and explainable artificial intelligence studies.</p><p>Version 1.0.1 is a maintenance release incorporating corrections and validation improvements introduced during the SoftwareX review process.</p>",
+  "creators": [
+    {
+      "name": "Carneiro Diaz, Victor Manuel",
+      "affiliation": "Universidade da Coruña",
+      "orcid": "0000-0002-7536-9422"
+    },
+    {
+      "name": "Alvarez Gonzalez, Marco Antonio",
+      "affiliation": "Universidade da Coruña",
+      "orcid": "0000-0002-6786-2620"
+    },
+    {
+      "name": "Padín Torrente, Héctor",
+      "affiliation": "Universidade da Coruña",
+      "orcid": "0009-0002-5555-3430"
+    },
+    {
+      "name": "Bustos-Jiménez, Javier",
+      "affiliation": "Universidad de Chile",
+      "orcid": "0000-0003-0036-2004"
+    }
+  ],
+  "version": "v1.0.1",
+  "upload_type": "software",
+  "access_right": "open",
+  "license": "apache2.0",
+  "language": "eng",
+  "keywords": [
+    "Domain Generation Algorithm",
+    "DNS",
+    "Malicious domain detection",
+    "Dataset Generation"
+  ],
+  "related_identifiers": [
+    {
+      "identifier": "https://github.com/cyberLLM-Net/DGA-xAI/tree/v1.0.1",
+      "relation": "isSupplementTo",
+      "resource_type": "software"
+    }
+  ],
+  "grants": [
+    {
+      "id": "05r0vyz12::PID2023-150794OB-I00"
+    }
+  ]
+}
